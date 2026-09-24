@@ -1,6 +1,7 @@
 using WebAPI_simple.Data;
 using WebAPI_simple.Models.Domain;
 using WebAPI_simple.Models.DTO;
+using Microsoft.EntityFrameworkCore;
 
 namespace WebAPI_simple.Repositories
 {
@@ -79,6 +80,27 @@ namespace WebAPI_simple.Repositories
                 _dbContext.SaveChanges();
             }
             return authorDomain;
+        }
+
+        public AuthorWithBooksDTO? GetBooksByAuthorId(int id)
+        {
+            var authorDomain = _dbContext.Authors
+                .Include(a => a.Book_Authors)
+                    .ThenInclude(ba => ba.Book)
+                .FirstOrDefault(a => a.Id == id);
+
+            if (authorDomain == null)
+            {
+                return null;
+            }
+
+            var result = new AuthorWithBooksDTO
+            {
+                FullName = authorDomain.FullName,
+                BookTitles = authorDomain.Book_Authors.Select(ba => ba.Book.Title).ToList()
+            };
+
+            return result;
         }
     }
 }
