@@ -1,20 +1,20 @@
 using Microsoft.EntityFrameworkCore;
 using WebAPI_simple.Data;
+using WebAPI_simple.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
-
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-var app = builder.Build();
+builder.Services.AddScoped<IBookRepository, SQLBookRepository>();
 
+var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
