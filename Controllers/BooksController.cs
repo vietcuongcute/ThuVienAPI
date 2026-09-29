@@ -3,6 +3,7 @@ using WebAPI_simple.Data;
 using WebAPI_simple.Models.DTO;
 using WebAPI_simple.Repositories;
 using WebAPI_simple.CustomActionFilters;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WebAPI_simple.Controllers
 {
@@ -20,33 +21,31 @@ namespace WebAPI_simple.Controllers
         }
 
         [HttpGet("get-all-books")]
+        [Authorize(Roles = "Read")]
         public IActionResult GetAll(
-     [FromQuery] string? filterOn, [FromQuery] string? filterQuery,
-     [FromQuery] string? sortBy, [FromQuery] bool isAscending = true,
-     [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 100)
+            [FromQuery] string? filterOn, [FromQuery] string? filterQuery,
+            [FromQuery] string? sortBy, [FromQuery] bool isAscending = true,
+            [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 100)
         {
-            // sử dụng repository pattern
             var allBooks = _bookRepository.GetAllBooks(filterOn, filterQuery, sortBy, isAscending, pageNumber, pageSize);
             return Ok(allBooks);
         }
 
         [HttpGet]
         [Route("get-book-by-id/{id:int}")]
+        [Authorize(Roles = "Read")]
         public IActionResult GetBookById([FromRoute] int id)
         {
             var bookWithIdDTO = _bookRepository.GetBookById(id);
-            if (bookWithIdDTO == null)
-            {
-                return NotFound(new { message = "Không tìm thấy sách" });
-            }
+            if (bookWithIdDTO == null) return NotFound(new { message = "Không tìm thấy sách" });
             return Ok(bookWithIdDTO);
         }
 
         [HttpPost("add-book")]
-        [ValidateModel]
+        [Authorize(Roles = "Write")]
         public IActionResult AddBook([FromBody] AddBookRequestDTO addBookRequestDTO)
         {
-            if (ValidateAddBook(addBookRequestDTO))
+            if (ModelState.IsValid)
             {
                 var bookAdd = _bookRepository.AddBook(addBookRequestDTO);
                 return Ok(bookAdd);
@@ -55,26 +54,23 @@ namespace WebAPI_simple.Controllers
         }
 
         [HttpPut("update-book-by-id/{id:int}")]
+        [Authorize(Roles = "Write")]
         public IActionResult UpdateBookById(int id, [FromBody] AddBookRequestDTO bookDTO)
         {
             var updateBook = _bookRepository.UpdateBookById(id, bookDTO);
-            if (updateBook == null)
-            {
-                return NotFound(new { message = "Không tìm thấy sách" });
-            }
+            if (updateBook == null) return NotFound(new { message = "Không tìm thấy sách" });
             return Ok(updateBook);
         }
 
         [HttpDelete("delete-book-by-id/{id:int}")]
+        [Authorize(Roles = "Write")]
         public IActionResult DeleteBookById(int id)
         {
             var deleteBook = _bookRepository.DeleteBookById(id);
-            if (deleteBook == null)
-            {
-                return NotFound(new { message = "Không tìm thấy sách" });
-            }
+            if (deleteBook == null) return NotFound(new { message = "Không tìm thấy sách" });
             return Ok(deleteBook);
         }
+
 
         #region Private methods
         private bool ValidateAddBook(AddBookRequestDTO addBookRequestDTO)
