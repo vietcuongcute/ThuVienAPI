@@ -13,11 +13,62 @@ namespace WebAPI_simple.Repositories
             _dbContext = dbContext;
         }
 
-        public List<BookWithAuthorAndPublisherDTO> GetAllBooks()
+        public List<BookWithAuthorAndPublisherDTO> GetAllBooks(
+    string? filterOn = null, string? filterQuery = null,
+    string? sortBy = null, bool isAscending = true,
+    int pageNumber = 1, int pageSize = 100)
         {
-            var allBooks = _dbContext.Books
-                .Include(b => b.Publisher)
-                .Include(b => b.Book_Authors).ThenInclude(ba => ba.Author)
+            // bắt đầu từ IQueryable của Domain Model (chưa chạm database)
+            var query = _dbContext.Books.AsQueryable();
+
+            // 1. Filtering
+            if (!string.IsNullOrWhiteSpace(filterOn) && !string.IsNullOrWhiteSpace(filterQuery))
+            {
+                if (filterOn.Equals("title", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(x => x.Title.Contains(filterQuery));
+                }
+                else if (filterOn.Equals("genre", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(x => x.Genre.Contains(filterQuery));
+                }
+                else if (filterOn.Equals("description", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(x => x.Description.Contains(filterQuery));
+                }
+            }
+
+            // 2. Sorting
+            if (!string.IsNullOrWhiteSpace(sortBy))
+            {
+                if (sortBy.Equals("title", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = isAscending ? query.OrderBy(x => x.Title) : query.OrderByDescending(x => x.Title);
+                }
+                else if (sortBy.Equals("dateadded", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = isAscending ? query.OrderBy(x => x.DateAdded) : query.OrderByDescending(x => x.DateAdded);
+                }
+                else
+                {
+                    query = query.OrderBy(x => x.Id);
+                }
+            }
+            else
+            {
+                // Skip/Take cần có thứ tự cố định, nếu không kết quả các trang có thể bị lặp/sót
+                query = query.OrderBy(x => x.Id);
+            }
+
+            // 3. Pagination
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 100;
+            var skipResults = (pageNumber - 1) * pageSize;
+
+            // 4. Map sang DTO rồi mới chạy SQL (ToList)
+            return query
+                .Skip(skipResults)
+                .Take(pageSize)
                 .Select(book => new BookWithAuthorAndPublisherDTO()
                 {
                     Id = book.Id,
@@ -32,8 +83,6 @@ namespace WebAPI_simple.Repositories
                     PublisherName = book.Publisher != null ? book.Publisher.Name : "Unknown",
                     AuthorNames = book.Book_Authors.Select(n => n.Author.FullName).ToList()
                 }).ToList();
-
-            return allBooks;
         }
 
         public BookWithAuthorAndPublisherDTO? GetBookById(int id)
