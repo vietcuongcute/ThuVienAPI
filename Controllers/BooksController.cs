@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using WebAPI_simple.Data;
 using WebAPI_simple.Models.DTO;
 using WebAPI_simple.Repositories;
+using WebAPI_simple.CustomActionFilters;
 
 namespace WebAPI_simple.Controllers
 {
@@ -21,7 +22,6 @@ namespace WebAPI_simple.Controllers
         [HttpGet("get-all-books")]
         public IActionResult GetAll()
         {
-            // sử dụng repository pattern
             var allBooks = _bookRepository.GetAllBooks();
             return Ok(allBooks);
         }
@@ -39,10 +39,15 @@ namespace WebAPI_simple.Controllers
         }
 
         [HttpPost("add-book")]
+        [ValidateModel]
         public IActionResult AddBook([FromBody] AddBookRequestDTO addBookRequestDTO)
         {
-            var bookAdd = _bookRepository.AddBook(addBookRequestDTO);
-            return Ok(bookAdd);
+            if (ValidateAddBook(addBookRequestDTO))
+            {
+                var bookAdd = _bookRepository.AddBook(addBookRequestDTO);
+                return Ok(bookAdd);
+            }
+            return BadRequest(ModelState);
         }
 
         [HttpPut("update-book-by-id/{id:int}")]
@@ -66,5 +71,36 @@ namespace WebAPI_simple.Controllers
             }
             return Ok(deleteBook);
         }
+
+        #region Private methods
+        private bool ValidateAddBook(AddBookRequestDTO addBookRequestDTO)
+        {
+            if (addBookRequestDTO == null)
+            {
+                ModelState.AddModelError(nameof(addBookRequestDTO), "Please add book data");
+                return false;
+            }
+
+            // kiểm tra Description không được rỗng
+            if (string.IsNullOrEmpty(addBookRequestDTO.Description))
+            {
+                ModelState.AddModelError(nameof(addBookRequestDTO.Description),
+                    $"{nameof(addBookRequestDTO.Description)} cannot be null");
+            }
+
+            // kiểm tra rating (0,5)
+            if (addBookRequestDTO.Rate < 0 || addBookRequestDTO.Rate > 5)
+            {
+                ModelState.AddModelError(nameof(addBookRequestDTO.Rate),
+                    $"{nameof(addBookRequestDTO.Rate)} cannot be less than 0 and more than 5");
+            }
+
+            if (ModelState.ErrorCount > 0)
+            {
+                return false;
+            }
+            return true;
+        }
+        #endregion
     }
 }
