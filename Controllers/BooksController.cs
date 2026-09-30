@@ -4,6 +4,7 @@ using WebAPI_simple.Models.DTO;
 using WebAPI_simple.Repositories;
 using WebAPI_simple.CustomActionFilters;
 using Microsoft.AspNetCore.Authorization;
+using System.Text.Json;
 
 namespace WebAPI_simple.Controllers
 {
@@ -13,11 +14,13 @@ namespace WebAPI_simple.Controllers
     {
         private readonly AppDbContext _dbContext;
         private readonly IBookRepository _bookRepository;
+        private readonly ILogger<BooksController> _logger;
 
-        public BooksController(AppDbContext dbContext, IBookRepository bookRepository)
+        public BooksController(AppDbContext dbContext, IBookRepository bookRepository, ILogger<BooksController> logger)
         {
             _dbContext = dbContext;
             _bookRepository = bookRepository;
+            _logger = logger;
         }
 
         [HttpGet("get-all-books")]
@@ -27,39 +30,37 @@ namespace WebAPI_simple.Controllers
             [FromQuery] string? sortBy, [FromQuery] bool isAscending = true,
             [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 100)
         {
+            _logger.LogInformation("GetAll Book Action method was invoked");   // 3. dùng "_logger" có gạch dưới
+
             var allBooks = _bookRepository.GetAllBooks(filterOn, filterQuery, sortBy, isAscending, pageNumber, pageSize);
+
+            _logger.LogInformation("Finished GetAllBook request with {Count} results", allBooks.Count);
+
             return Ok(allBooks);
         }
 
-        [HttpGet]
-        [Route("get-book-by-id/{id:int}")]
-        [Authorize(Roles = "Read")]
-        public IActionResult GetBookById([FromRoute] int id)
-        {
-            var bookWithIdDTO = _bookRepository.GetBookById(id);
-            if (bookWithIdDTO == null) return NotFound(new { message = "Không tìm thấy sách" });
-            return Ok(bookWithIdDTO);
-        }
 
         [HttpPost("add-book")]
         [Authorize(Roles = "Write")]
         public IActionResult AddBook([FromBody] AddBookRequestDTO addBookRequestDTO)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
+            {
+                _logger.LogWarning("AddBook validation failed: {@Errors}", ModelState);
+                return BadRequest(ModelState);
+            }
+
+            try
             {
                 var bookAdd = _bookRepository.AddBook(addBookRequestDTO);
+                _logger.LogInformation("Book added successfully: {Title}", addBookRequestDTO.Title);
                 return Ok(bookAdd);
             }
-            return BadRequest(ModelState);
-        }
-
-        [HttpPut("update-book-by-id/{id:int}")]
-        [Authorize(Roles = "Write")]
-        public IActionResult UpdateBookById(int id, [FromBody] AddBookRequestDTO bookDTO)
-        {
-            var updateBook = _bookRepository.UpdateBookById(id, bookDTO);
-            if (updateBook == null) return NotFound(new { message = "Không tìm thấy sách" });
-            return Ok(updateBook);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while adding book");
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         [HttpDelete("delete-book-by-id/{id:int}")]
