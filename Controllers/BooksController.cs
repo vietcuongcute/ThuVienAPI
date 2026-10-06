@@ -72,6 +72,29 @@ namespace WebAPI_simple.Controllers
             return Ok(deleteBook);
         }
 
+        [HttpGet("get-book-by-id/{id:int}")]
+        [Authorize(Roles = "Read")]
+        public IActionResult GetBookById(int id)
+        {
+            var book = _bookRepository.GetBookById(id);
+            if (book == null)
+            {
+                return NotFound(new { message = "Không tìm thấy sách" });
+            }
+            return Ok(book);
+        }
+
+        [HttpPut("update-book-by-id/{id:int}")]
+        [Authorize(Roles = "Write")]
+        public IActionResult UpdateBookById(int id, [FromBody] AddBookRequestDTO bookDTO)
+        {
+            var updatedBook = _bookRepository.UpdateBookById(id, bookDTO);
+            if (updatedBook == null)
+            {
+                return NotFound(new { message = "Không tìm thấy sách để cập nhật" });
+            }
+            return Ok(updatedBook);
+        }
 
         #region Private methods
         private bool ValidateAddBook(AddBookRequestDTO addBookRequestDTO)
